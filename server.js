@@ -13,6 +13,7 @@ const io = new Server(server);
 const { getDate } = require('./helpers');
 
 console.log(getDate());
+// console.log(generateNickname());
 
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));

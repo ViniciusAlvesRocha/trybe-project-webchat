@@ -21,7 +21,7 @@
       left: 0;
       right: 0;
       display: flex;
-      height: 3rem;
+      height: 5rem;
       box-sizing: border-box;
       backdrop-filter: blur(10px);
     }
@@ -67,26 +67,48 @@
 <body>
   <ul id="messages"></ul>
   <form id="form">
-    <input id="input-nick-name" value="ViniRocha"/>
-    <input id="input" value="Hello World">
-    <button>Enviar</button>
+    <label>Inserir nickname personalizado:
+      <input id="input-nick-name" type="text" data-testid="nickname-box" />
+    </label>
+    <button id="btn-nickname" type="button" data-testid="nickname-button">Definir nickname</button>
+    <div id="div-nick-name" data-testid="online-user"></div>
+    <input id="input" value="Hello World" data-testid="message-box">
+    <button data-testid="send-button" >Enviar</button>
   </form>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+
+    const generateNickname = () => {
+      const letters = 'abcdefghijklmnopqrstuvwxyz';
+      const nickName = [];
+      for (let i = 0; i < 16; i += 1) {
+        nickName.push(letters[parseInt((Math.random() * 26).toFixed(0), 10)]);
+      }
+      return nickName.join('');
+    };
+
     const socket = io();
 
     const form = document.querySelector('#form');
+    const btnNickname = document.querySelector('#btn-nickname');
     const inputNickName = document.querySelector('#input-nick-name');
+    const divNickname = document.querySelector('#div-nick-name');
+    divNickname.textContent = generateNickname();
     const input = document.querySelector('#input');
     const messages = document.querySelector('#messages');
 
+    btnNickname.addEventListener('click', (_el) => {
+      divNickname.textContent = inputNickName.value;
+    });
+
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+      
       if (input.value) {
         socket.emit('message', {
           chatMessage: input.value,
-          nickname: inputNickName.value
+          nickname: divNickname.textContent
         });
         input.value = '';
       }
@@ -95,6 +117,7 @@
     socket.on('message', (msg) => {
       const newMessage = document.createElement('li');
       newMessage.textContent = msg;
+      newMessage.setAttribute('data-testid', 'message')
       messages.appendChild(newMessage);
       window.scrollTo(0, document.body.scrollHeight);
     })
