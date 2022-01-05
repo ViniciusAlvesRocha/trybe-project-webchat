@@ -1,3 +1,5 @@
+const { messages } = require('../server');
+
 const getDate = () => {
   const date = new Date();
   const DD = () => date.getDay();
@@ -9,6 +11,9 @@ const getDate = () => {
   return `${DD()}-${MM()}-${yyyy()} ${HH()}:${mm()}:${ss()}`;
 };
 
+const getIndexOfMessage = (message) => messages.indexOf(message);
+
 module.exports = {
   getDate,
+  getIndexOfMessage,
 };
