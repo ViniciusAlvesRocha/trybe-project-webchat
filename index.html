@@ -97,31 +97,19 @@
   <script src="node_modules/uuid/"></script>
   <script>
 
-    const generateNickname = () => {
-      const letters = 'abcdefghijklmnopqrstuvwxyz';
-      const nickName = [];
-      for (let i = 0; i < 16; i += 1) {
-        nickName.push(letters[parseInt((Math.random() * 25).toFixed(0), 10)]);
-      }
-      return nickName.join('');
-    };
 
-    sessionStorage.setItem('user', JSON.stringify({ id: '', nickname: generateNickname() }));
+    const getNickname = () => sessionStorage.getItem('user');
 
-    const getNickname = () => JSON.parse(sessionStorage.getItem('user')).nickname;
-
-    const getUserId = () => JSON.parse(sessionStorage.getItem("user")).id;
+    const setNickname = (nickname) => sessionStorage.setItem('user', nickname);
 
     const socket = io();
     
-    socket.emit('addUser', getNickname());
+    socket.emit('addUser', 'addUser');
 
     const form = document.querySelector('#form');
     const btnNickname = document.querySelector('#btn-nickname');
     const inputNickName = document.querySelector('#input-nick-name');
     const divNickname = document.querySelector('#div-nick-name');
-    divNickname.textContent = getNickname();
-    console.log('nickname localstorage:::', getNickname());
     const input = document.querySelector('#input');
     const messages = document.querySelector('#messages');
 
@@ -129,34 +117,33 @@
 
     btnNickname.addEventListener('click', (_el) => {
       divNickname.textContent = inputNickName.value;
-      socket.emit('updateNickname', { nickname: inputNickName.value });
+      socket.emit('updateNickname', { nickname: inputNickName.value, olderNickname: getNickname() });
     });
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       
       if (input.value) {
-        socket.emit('message', {
-          chatMessage: input.value,
-          nickname: divNickname.textContent
-        });
+        socket.emit('message', { chatMessage: input.value, nickname: getNickname() });
         input.value = '';
       }
     });
 
+    const getNicknameFromMessage = (message) => (message.split(' ')[2].replace(':', ''));
+
     const createMessage = (message) => {
-      const { id, userId, msg } = message;
       const newMessage = document.createElement('li');
-      newMessage.textContent = msg;
+      newMessage.textContent = message;
       newMessage.setAttribute('data-testid', 'message')
-      newMessage.setAttribute('data-user-id', userId);
-      newMessage.setAttribute('data-message-id', id);
+      newMessage.setAttribute('data-user-id', getNicknameFromMessage(message));
       messages.appendChild(newMessage);
       window.scrollTo(0, document.body.scrollHeight);
     };
 
-    socket.on('user.id-messages', ({ userId, serverMessages }) => {
-      sessionStorage.setItem("user", JSON.stringify({ ...JSON.parse(sessionStorage.getItem("user")), id: userId }));
+    socket.on('user.id-messages', ({ nickname, serverMessages }) => {
+      sessionStorage.setItem("user", nickname);
+      console.log('SESSION STORAGE:::', getNickname());
+      divNickname.innerText = nickname;
       serverMessages.forEach(message => createMessage(message));
     });
 
@@ -167,45 +154,42 @@
     socket.on('addUser', (usersBack) => {
       users.innerText = '';
       console.log('One user delete', usersBack);
-      usersBack.forEach(({ id, nickname }) => {
-        console.log('NICKNAME_USER_ID:', nickname, id);
+      usersBack.forEach((nickname) => {
         const newUser = document.createElement('li');
         newUser.textContent = nickname;
         newUser.setAttribute('data-testid', 'online-user');
-        newUser.setAttribute('id', `user-${id}`);
-        id !== JSON.parse(sessionStorage.getItem("user")).id ? users.appendChild(newUser) : users.prepend(newUser);
+        newUser.setAttribute('id', `user-${nickname}`);
+        nickname !== getNickname() ? users.appendChild(newUser) : users.prepend(newUser);
       });
       window.scrollTo(0, document.body.scrollHeight);
     });
 
-    const updateListUsers = (user) => {
-      const { id, nickname } = user;
-      const itemListUser = document.querySelector(`#user-${id}`);
+    const updateListUsers = ({ nickname, olderNickname }) => {
+      const itemListUser = document.querySelector(`#user-${olderNickname}`);
+      console.log('itemListUser', itemListUser);
       itemListUser.textContent = nickname;
     };
 
-    const updateNicknameOfMessages = (msg) => {
-      const { id, nickname, olderNickname } = msg;
-      console.log('nickname', nickname);
-      const messagesToUpdate = document.querySelectorAll(`[data-user-id='${id}']`);
+    const updateNicknameOfMessages = (nickName) => {
+      const messagesToUpdate = document.querySelectorAll(`[data-user-id='${getNickname()}']`);
       console.log('messages');
       console.log(messagesToUpdate);
       messagesToUpdate.forEach((message) => {
         console.log(message);
         let contentMessage = message.textContent;
         contentMessage = contentMessage.split(' ');
-        contentMessage[2] = `${ nickname }:`;
+        contentMessage[2] = `${ nickName }:`;
         message.textContent = contentMessage.join(' ');
         console.log('nickname list message updated::::', contentMessage);
       });
-      currentNickname = msg.nickname;
     };
 
-    socket.on('updateNickname', (msg) => {
-      console.log('updateNickname', msg);
-      const itemListUser = document.querySelector(`#user-${msg.id}`);
-      if (itemListUser) updateListUsers(msg);
-      updateNicknameOfMessages(msg)
+    socket.on('updateNickname', ({ nickname, olderNickname }) => {
+      console.log('updateNickname', nickname);
+      const itemListUser = document.querySelector(`#user-${olderNickname}`);
+      if (itemListUser) updateListUsers({ nickname, olderNickname });
+      updateNicknameOfMessages(nickname);
+      if (getNickname(nickname) === olderNickname) setNickname(nickname);
     })
   </script>
 </body>
