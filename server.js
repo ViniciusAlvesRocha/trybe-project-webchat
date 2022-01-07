@@ -2,11 +2,7 @@
 
 const express = require('express');
 const http = require('http');
-const { indexOf } = require('lodash');
-const { deleteCallback } = require('mongodb/lib/operations/common_functions');
-const path = require('path');
-const { disconnect } = require('process');
-const { v4 } = require('uuid');
+const path = require('path');     
 const { Server } = require('socket.io');
 const { modelCreateMessage, findAll } = require('./models/modelMessage');
 
@@ -36,35 +32,29 @@ const updateListUser = (nickname) => {
   users.splice(users.indexOf(userFinded), 1, nickname);
 };
 
-/*  const message = {
-      id,
-      userId: socket.id,
-      msg: `${getDate()} ${msg.nickname}: ${msg.chatMessage}`,
-    }; */
-
 const getNicknameFromMessage = (message) => (message.split(' ')[1].replace(':', ''));
 
 const updateListMessages = ({ olderNickname, newNickname }) => {
   messages.forEach((message) => {
     if (getNicknameFromMessage(message) === olderNickname) {
-      let msg = message.msg.split(' ');
-      msg[2] = `${ newNickname }:`;
-      message = msg.join(' ');
+      const msg = message.msg.split(' ');
+      msg[2] = `${newNickname}:`;
+      return msg.join(' ');
     }
+    return message;
   });
-}
+};
 
 const createMessage = async (msg) => {
-  console.log('linha 58', msg.message);
-  const { nickname, message } = msg;
+  const { message } = msg;
   messages.push(message);
-  const messageCreated = await modelCreateMessage({ nickname, message});
+  await modelCreateMessage(msg);
 };
 
 const disconnectIo = (socket) => {
   socket.on('disconnect', () => {
-    console.log(`usuário ${socket.id} desconectou`);
-    const userFinded = users.find(({ id }) => id === socket.id);
+    console.log(`usuário ${socket.id.substring(0, 16)} desconectou`);
+    const userFinded = users.find(({ id }) => id === socket.id.substring(0, 16));
     users.splice(users.indexOf(userFinded), 1);
     console.log(users);
     io.emit('addUser', users);
@@ -72,29 +62,22 @@ const disconnectIo = (socket) => {
 };
 
 io.on('connection', (socket) => {
-  console.log(`usuário ${socket.id} conectado`);
-
   socket.on('addUser', (_e) => {
-    socket.id = socket.id.substring(0, 16);
-    socket.emit('user.id-messages', { nickname: socket.id, serverMessages: messages });
-    users.push(socket.id);
-    console.log(users);
+    socket.emit('user.id-messages', ({
+      nickname: socket.id.substring(0, 16),
+      serverMessages: messages }));
+    users.push(socket.id.substring(0, 16));
     io.emit('addUser', users);
   });
-
   socket.on('message', ({ chatMessage, nickname }) => {
-    // console.log('object :::::::::::', chatMessage);
     const message = `${getDate()} ${nickname}: ${chatMessage}`;
-    createMessage({ nickname: socket.id, message: message });
+    createMessage({ nickname: socket.id.substring(0, 16), message });
     io.emit('message', message);
   });
-
   socket.on('updateNickname', ({ nickname, olderNickname }) => {
-    console.log('updateNickname:::', nickname);
     updateListUser(nickname);
-    updateListMessages({ olderNickname: socket.id, newNickname: nickname });
-    socket.id = nickname;
-    io.emit('updateNickname', { nickname: socket.id, olderNickname});
+    updateListMessages({ olderNickname: socket.id.substring(0, 16), newNickname: nickname });
+    io.emit('updateNickname', { nickname, olderNickname });
   });
   disconnectIo(socket);
 });
